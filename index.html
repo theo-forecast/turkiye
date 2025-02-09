@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Turkey Swingometer</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* Reset */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #f0f2f5, #cfd8dc);
+      color: #333;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: 700;
+      color: #2c3e50;
+    }
+    
+    p {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 1.1em;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    
+    table thead {
+      background-color: #2c3e50;
+      color: #fff;
+    }
+    
+    table th, table td {
+      padding: 12px;
+      text-align: center;
+      border: 1px solid #ddd;
+    }
+    
+    table tbody tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    
+    input[type="number"] {
+      width: 100%;
+      padding: 8px;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    
+    input[type="number"]:focus {
+      outline: none;
+      border-color: #2c3e50;
+      box-shadow: 0 0 5px rgba(44, 62, 80, 0.5);
+    }
+    
+    input[type="checkbox"] {
+      transform: scale(1.2);
+      cursor: pointer;
+    }
+    
+    label {
+      font-size: 1.1em;
+      margin-right: 10px;
+    }
+    
+    button {
+      background-color: #2c3e50;
+      color: #fff;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      font-size: 1.1em;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    
+    button:hover {
+      background-color: #34495e;
+    }
+    
+    .results-section {
+      margin-top: 30px;
+    }
+    
+    .results-section h2 {
+      margin-bottom: 15px;
+      color: #2c3e50;
+      border-bottom: 2px solid #2c3e50;
+      padding-bottom: 5px;
+    }
+    
+    .results-section h3 {
+      margin-top: 20px;
+      color: #34495e;
+    }
+    
+    @media (max-width: 768px) {
+      table th, table td {
+        padding: 8px;
+      }
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Turkey Swingometer</h1>
+    <p>
+      Enter each party’s national vote share (the numbers do not have to sum to 100). The values are normalized to calculate the adjusted national vote percentage. These percentages are then multiplied by each province’s party “ratio” to compute local votes. Local vote percentages are computed from these values, and seats are allocated by the d’Hondt method (with a threshold applied for seat allocation).
+    </p>
+    
+    <!-- Input Form -->
+    <form id="swingometerForm">
+      <table>
+        <thead>
+          <tr>
+            <th>Party</th>
+            <th>National Vote Share</th>
+            <th>Force Qualify MP<sup>*</sup></th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Rows are added by JavaScript -->
+        </tbody>
+      </table>
+      <div style="text-align: center; margin-bottom: 20px;">
+        <label for="threshold">Threshold (%)</label>
+        <input type="number" id="threshold" value="10" step="0.1" style="width: 80px;">
+      </div>
+      <div style="text-align: center;">
+        <button type="button" onclick="calculateSwingometer()">Calculate</button>
+      </div>
+      <p style="font-size: 0.9em; margin-top: 10px; text-align: center;">
+        <sup>*</sup> Checking this box allows the party to qualify for MP allocation regardless of threshold.
+      </p>
+    </form>
+    
+    <!-- Results Section -->
+    <div id="results" class="results-section"></div>
+  </div>
+  
+  <script>
+    /***********************************************
+     * PARTIES and PROVINCES DATA
+     ***********************************************/
+    
+    const parties = ["CHP", "AKP", "MHP", "İYİP", "DEM", "YRP", "ZP", "BBP", "TİP", "OTH"];
+    
+    // Populate the input form with a row for each party.
+    window.onload = function() {
+      const tbody = document.querySelector("form#swingometerForm tbody");
+      parties.forEach(party => {
+        const row = document.createElement("tr");
+        
+        // Party Name cell.
+        const cellParty = document.createElement("td");
+        cellParty.textContent = party;
+        row.appendChild(cellParty);
+        
+        // National Vote Share input cell.
+        const cellInput = document.createElement("td");
+        const input = document.createElement("input");
+        input.type = "number";
+        input.id = "input_" + party;
+        input.value = "0";
+        input.step = "any";
+        cellInput.appendChild(input);
+        row.appendChild(cellInput);
+        
+        // Force Qualify checkbox cell.
+        const cellCheckbox = document.createElement("td");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.id = "qualify_" + party;
+        // For the "OTH" party, disable the checkbox because it should never qualify.
+        if (party === "OTH") {
+          checkbox.disabled = true;
+          checkbox.checked = false;
+        }
+        cellCheckbox.appendChild(checkbox);
+        row.appendChild(cellCheckbox);
+        
+        tbody.appendChild(row);
+      });
+    }
+    
+    // Province data with MP counts and party ratios.
+const provinces = [
+  {
+    name: "Adana",
+    mpCount: 15,
+    ratios: { "CHP": 1.13, "AKP": 0.86, "MHP": 1.10, "İYİP": 1.11, "DEM": 1.10, "YRP": 0.63, "ZP": 0.94, "BBP": 0.93, "TİP": 1.33, "OTH": 0.82 }
+  },
+  {
+    name: "Adıyaman",
+    mpCount: 5,
+    ratios: { "CHP": 0.50, "AKP": 1.49, "MHP": 0.41, "İYİP": 0.61, "DEM": 1.37, "YRP": 1.70, "ZP": 0.27, "BBP": 1.01, "TİP": 0.00, "OTH": 0.72 }
+  },
+  {
+    name: "Afyonkarahisar",
+    mpCount: 6,
+    ratios: { "CHP": 0.73, "AKP": 1.25, "MHP": 1.62, "İYİP": 1.28, "DEM": 0.04, "YRP": 1.05, "ZP": 1.00, "BBP": 1.11, "TİP": 0.12, "OTH": 0.63 }
+  },
+  {
+    name: "Ağrı",
+    mpCount: 4,
+    ratios: { "CHP": 0.42, "AKP": 0.70, "MHP": 0.23, "İYİP": 0.17, "DEM": 6.37, "YRP": 0.70, "ZP": 0.00, "BBP": 0.29, "TİP": 0.00, "OTH": 1.09 }
+  },
+  {
+    name: "Aksaray",
+    mpCount: 4,
+    ratios: { "CHP": 0.48, "AKP": 1.24, "MHP": 2.11, "İYİP": 1.35, "DEM": 0.07, "YRP": 0.91, "ZP": 0.59, "BBP": 2.15, "TİP": 0.15, "OTH": 0.75 }
+  },
+  {
+    name: "Amasya",
+    mpCount: 3,
+    ratios: { "CHP": 1.18, "AKP": 1.12, "MHP": 1.69, "İYİP": 0.73, "DEM": 0.04, "YRP": 0.63, "ZP": 0.66, "BBP": 0.84, "TİP": 0.21, "OTH": 0.74 }
+  },
+  {
+    name: "Ankara 1, Bölge",
+    mpCount: 13,
+    ratios: { "CHP": 1.66, "AKP": 0.69, "MHP": 0.81, "İYİP": 1.34, "DEM": 0.45, "YRP": 0.69, "ZP": 1.34, "BBP": 0.88, "TİP": 0.00, "OTH": 1.01 }
+  },
+  {
+    name: "Ankara 2, Bölge",
+    mpCount: 11,
+    ratios: { "CHP": 0.81, "AKP": 1.18, "MHP": 1.20, "İYİP": 1.19, "DEM": 0.25, "YRP": 1.23, "ZP": 1.54, "BBP": 1.43, "TİP": 0.66, "OTH": 0.94 }
+  },
+  {
+    name: "Ankara 3, Bölge",
+    mpCount: 12,
+    ratios: { "CHP": 1.10, "AKP": 0.90, "MHP": 1.08, "İYİP": 1.43, "DEM": 0.28, "YRP": 0.97, "ZP": 1.63, "BBP": 1.61, "TİP": 1.43, "OTH": 0.99 }
+  },
+  {
+    name: "Antalya",
+    mpCount: 17,
+    ratios: { "CHP": 1.28, "AKP": 0.81, "MHP": 0.99, "İYİP": 1.17, "DEM": 0.54, "YRP": 0.44, "ZP": 1.26, "BBP": 0.67, "TİP": 2.69, "OTH": 1.35 }
+  },
+  {
+    name: "Ardahan",
+    mpCount: 2,
+    ratios: { "CHP": 1.18, "AKP": 0.98, "MHP": 0.30, "İYİP": 0.49, "DEM": 2.48, "YRP": 0.35, "ZP": 0.46, "BBP": 0.35, "TİP": 0.00, "OTH": 1.48 }
+  },
+  {
+    name: "Artvin",
+    mpCount: 2,
+    ratios: { "CHP": 1.18, "AKP": 1.05, "MHP": 0.96, "İYİP": 1.35, "DEM": 0.10, "YRP": 0.83, "ZP": 0.52, "BBP": 0.39, "TİP": 0.88, "OTH": 1.56 }
+  },
+  {
+    name: "Aydın",
+    mpCount: 8,
+    ratios: { "CHP": 1.41, "AKP": 0.80, "MHP": 0.85, "İYİP": 1.33, "DEM": 0.82, "YRP": 0.25, "ZP": 0.99, "BBP": 0.87, "TİP": 0.00, "OTH": 1.26 }
+  },
+  {
+    name: "Balıkesir",
+    mpCount: 9,
+    ratios: { "CHP": 1.24, "AKP": 0.97, "MHP": 0.81, "İYİP": 1.51, "DEM": 0.23, "YRP": 0.73, "ZP": 0.92, "BBP": 0.69, "TİP": 0.71, "OTH": 1.22 }
+  },
+  {
+    name: "Bartın",
+    mpCount: 2,
+    ratios: { "CHP": 0.99, "AKP": 1.03, "MHP": 2.37, "İYİP": 0.68, "DEM": 0.04, "YRP": 0.62, "ZP": 0.64, "BBP": 0.46, "TİP": 0.00, "OTH": 1.72 }
+  },
+  {
+    name: "Batman",
+    mpCount: 5,
+    ratios: { "CHP": 0.24, "AKP": 0.81, "MHP": 0.11, "İYİP": 0.19, "DEM": 6.75, "YRP": 0.37, "ZP": 0.00, "BBP": 0.31, "TİP": 0.00, "OTH": 0.73 }
+  },
+  {
+    name: "Bayburt",
+    mpCount: 1,
+    ratios: { "CHP": 0.28, "AKP": 1.71, "MHP": 1.67, "İYİP": 0.95, "DEM": 0.05, "YRP": 1.05, "ZP": 0.60, "BBP": 0.74, "TİP": 0.11, "OTH": 0.58 }
+  },
+  {
+    name: "Bilecik",
+    mpCount: 2,
+    ratios: { "CHP": 1.05, "AKP": 1.05, "MHP": 1.03, "İYİP": 1.26, "DEM": 0.30, "YRP": 1.16, "ZP": 1.00, "BBP": 0.88, "TİP": 0.48, "OTH": 1.32 }
+  },
+  {
+    name: "Bingöl",
+    mpCount: 3,
+    ratios: { "CHP": 0.20, "AKP": 1.10, "MHP": 1.35, "İYİP": 0.20, "DEM": 2.78, "YRP": 3.55, "ZP": 0.00, "BBP": 0.55, "TİP": 0.00, "OTH": 0.90 }
+  },
+  {
+    name: "Bitlis",
+    mpCount: 3,
+    ratios: { "CHP": 0.24, "AKP": 1.05, "MHP": 0.36, "İYİP": 0.73, "DEM": 4.65, "YRP": 0.74, "ZP": 0.00, "BBP": 0.33, "TİP": 0.00, "OTH": 1.26 }
+  },
+  {
+    name: "Bolu",
+    mpCount: 3,
+    ratios: { "CHP": 0.86, "AKP": 1.04, "MHP": 2.35, "İYİP": 0.76, "DEM": 0.09, "YRP": 1.14, "ZP": 0.85, "BBP": 0.77, "TİP": 0.32, "OTH": 1.25 }
+  },
+  {
+    name: "Burdur",
+    mpCount: 3,
+    ratios: { "CHP": 1.23, "AKP": 1.03, "MHP": 1.41, "İYİP": 1.18, "DEM": 0.07, "YRP": 0.42, "ZP": 0.63, "BBP": 0.70, "TİP": 0.00, "OTH": 1.18 }
+  },
+  {
+    name: "Bursa 1, Bölge",
+    mpCount: 10,
+    ratios: { "CHP": 1.07, "AKP": 1.01, "MHP": 0.79, "İYİP": 1.40, "DEM": 0.35, "YRP": 1.11, "ZP": 1.69, "BBP": 0.84, "TİP": 0.78, "OTH": 1.31 }
+  },
+  {
+    name: "Bursa 2, Bölge",
+    mpCount: 10,
+    ratios: { "CHP": 0.84, "AKP": 1.20, "MHP": 0.91, "İYİP": 1.04, "DEM": 0.64, "YRP": 1.43, "ZP": 1.58, "BBP": 0.69, "TİP": 0.00, "OTH": 1.26 }
+  },
+  {
+    name: "Çanakkale",
+    mpCount: 4,
+    ratios: { "CHP": 1.40, "AKP": 0.90, "MHP": 0.65, "İYİP": 1.69, "DEM": 0.22, "YRP": 0.34, "ZP": 0.89, "BBP": 0.44, "TİP": 0.72, "OTH": 1.30 }
+  },
+  {
+    name: "Çankırı",
+    mpCount: 2,
+    ratios: { "CHP": 0.24, "AKP": 1.19, "MHP": 3.14, "İYİP": 1.23, "DEM": 0.03, "YRP": 1.06, "ZP": 0.68, "BBP": 1.03, "TİP": 0.14, "OTH": 0.83 }
+  },
+  {
+    name: "Çorum",
+    mpCount: 4,
+    ratios: { "CHP": 0.87, "AKP": 1.13, "MHP": 2.03, "İYİP": 0.92, "DEM": 0.05, "YRP": 1.16, "ZP": 0.67, "BBP": 0.79, "TİP": 0.20, "OTH": 0.89 }
+  },
+  {
+    name: "Denizli",
+    mpCount: 7,
+    ratios: { "CHP": 1.26, "AKP": 0.95, "MHP": 0.83, "İYİP": 1.45, "DEM": 0.27, "YRP": 0.47, "ZP": 1.15, "BBP": 1.47, "TİP": 0.58, "OTH": 1.14 }
+  },
+  {
+    name: "Diyarbakır",
+    mpCount: 12,
+    ratios: { "CHP": 0.30, "AKP": 0.64, "MHP": 0.11, "İYİP": 0.23, "DEM": 7.13, "YRP": 0.55, "ZP": 0.00, "BBP": 0.21, "TİP": 0.00, "OTH": 0.83 }
+  },
+  {
+    name: "Düzce",
+    mpCount: 3,
+    ratios: { "CHP": 0.62, "AKP": 1.41, "MHP": 1.63, "İYİP": 0.71, "DEM": 0.11, "YRP": 1.37, "ZP": 0.96, "BBP": 0.92, "TİP": 0.25, "OTH": 1.32 }
+  },
+  {
+    name: "Edirne",
+    mpCount: 4,
+    ratios: { "CHP": 1.56, "AKP": 0.65, "MHP": 0.76, "İYİP": 2.12, "DEM": 0.20, "YRP": 0.23, "ZP": 0.66, "BBP": 0.23, "TİP": 0.61, "OTH": 1.33 }
+  },
+  {
+    name: "Elazığ",
+    mpCount: 5,
+    ratios: { "CHP": 0.81, "AKP": 1.14, "MHP": 1.14, "İYİP": 0.24, "DEM": 0.80, "YRP": 1.29, "ZP": 0.24, "BBP": 0.40, "TİP": 0.00, "OTH": 0.46 }
+  },
+  {
+    name: "Erzincan",
+    mpCount: 2,
+    ratios: { "CHP": 1.27, "AKP": 1.09, "MHP": 1.99, "İYİP": 0.41, "DEM": 0.12, "YRP": 0.51, "ZP": 0.42, "BBP": 0.37, "TİP": 0.14, "OTH": 0.47 }
+  },
+  {
+    name: "Erzurum",
+    mpCount: 6,
+    ratios: { "CHP": 0.25, "AKP": 1.22, "MHP": 1.68, "İYİP": 0.98, "DEM": 1.13, "YRP": 1.76, "ZP": 1.06, "BBP": 1.79, "TİP": 0.00, "OTH": 0.70 }
+  },
+  {
+    name: "Eskişehir",
+    mpCount: 6,
+    ratios: { "CHP": 1.35, "AKP": 0.93, "MHP": 0.72, "İYİP": 1.43, "DEM": 0.22, "YRP": 0.50, "ZP": 1.34, "BBP": 1.12, "TİP": 0.94, "OTH": 1.01 }
+  },
+  {
+    name: "Gaziantep",
+    mpCount: 14,
+    ratios: { "CHP": 0.80, "AKP": 1.27, "MHP": 0.96, "İYİP": 0.55, "DEM": 1.03, "YRP": 1.46, "ZP": 1.46, "BBP": 0.70, "TİP": 0.00, "OTH": 0.93 }
+  },
+  {
+    name: "Giresun",
+    mpCount: 4,
+    ratios: { "CHP": 0.81, "AKP": 1.22, "MHP": 1.57, "İYİP": 1.31, "DEM": 0.03, "YRP": 0.87, "ZP": 0.68, "BBP": 0.59, "TİP": 0.25, "OTH": 0.93 }
+  },
+  {
+    name: "Gümüşhane",
+    mpCount: 2,
+    ratios: { "CHP": 0.28, "AKP": 1.34, "MHP": 2.66, "İYİP": 1.19, "DEM": 0.03, "YRP": 0.94, "ZP": 0.48, "BBP": 0.84, "TİP": 0.15, "OTH": 0.79 }
+  },
+  {
+    name: "Hakkari",
+    mpCount: 3,
+    ratios: { "CHP": 0.19, "AKP": 0.56, "MHP": 0.27, "İYİP": 0.20, "DEM": 7.30, "YRP": 0.70, "ZP": 0.00, "BBP": 0.30, "TİP": 0.00, "OTH": 1.13 }
+  },
+  {
+    name: "Hatay",
+    mpCount: 11,
+    ratios: { "CHP": 1.13, "AKP": 0.95, "MHP": 1.22, "İYİP": 0.83, "DEM": 0.34, "YRP": 0.65, "ZP": 0.59, "BBP": 0.91, "TİP": 5.11, "OTH": 0.64 }
+  },
+  {
+    name: "Iğdır",
+    mpCount: 2,
+    ratios: { "CHP": 0.23, "AKP": 0.99, "MHP": 0.45, "İYİP": 0.67, "DEM": 5.09, "YRP": 0.16, "ZP": 0.00, "BBP": 0.20, "TİP": 0.00, "OTH": 0.98 }
+  },
+  {
+    name: "Isparta",
+    mpCount: 4,
+    ratios: { "CHP": 0.87, "AKP": 0.91, "MHP": 2.06, "İYİP": 1.69, "DEM": 0.08, "YRP": 0.64, "ZP": 0.86, "BBP": 0.54, "TİP": 0.18, "OTH": 0.98 }
+  },
+  {
+    name: "İstanbul 1, Bölge",
+    mpCount: 35,
+    ratios: { "CHP": 1.26, "AKP": 0.97, "MHP": 0.60, "İYİP": 0.80, "DEM": 0.71, "YRP": 1.05, "ZP": 1.20, "BBP": 1.02, "TİP": 2.73, "OTH": 0.95 }
+  },
+  {
+    name: "İstanbul 2, Bölge",
+    mpCount: 27,
+    ratios: { "CHP": 1.05, "AKP": 1.08, "MHP": 0.56, "İYİP": 0.88, "DEM": 0.84, "YRP": 1.37, "ZP": 1.27, "BBP": 0.71, "TİP": 2.16, "OTH": 1.00 }
+  },
+  {
+    name: "İstanbul 3, Bölge",
+    mpCount: 36,
+    ratios: { "CHP": 1.04, "AKP": 1.01, "MHP": 0.65, "İYİP": 0.83, "DEM": 1.22, "YRP": 1.11, "ZP": 1.29, "BBP": 0.70, "TİP": 2.18, "OTH": 0.91 }
+  },
+  {
+    name: "İzmir 1, Bölge",
+    mpCount: 14,
+    ratios: { "CHP": 1.67, "AKP": 0.70, "MHP": 0.46, "İYİP": 1.23, "DEM": 1.03, "YRP": 0.29, "ZP": 1.03, "BBP": 0.48, "TİP": 0.00, "OTH": 1.38 }
+  },
+  {
+    name: "İzmir 2, Bölge",
+    mpCount: 14,
+    ratios: { "CHP": 1.59, "AKP": 0.69, "MHP": 0.56, "İYİP": 1.13, "DEM": 0.67, "YRP": 0.33, "ZP": 1.05, "BBP": 0.45, "TİP": 3.20, "OTH": 1.28 }
+  },
+  {
+    name: "Kahramanmaraş",
+    mpCount: 8,
+    ratios: { "CHP": 0.63, "AKP": 1.35, "MHP": 1.62, "İYİP": 0.72, "DEM": 0.13, "YRP": 1.94, "ZP": 0.76, "BBP": 1.60, "TİP": 0.00, "OTH": 0.92 }
+  },
+  {
+    name: "Karabük",
+    mpCount: 3,
+    ratios: { "CHP": 0.86, "AKP": 1.06, "MHP": 1.60, "İYİP": 1.00, "DEM": 0.04, "YRP": 2.95, "ZP": 0.93, "BBP": 0.43, "TİP": 0.19, "OTH": 1.33 }
+  },
+  {
+    name: "Karaman",
+    mpCount: 3,
+    ratios: { "CHP": 0.75, "AKP": 1.16, "MHP": 1.82, "İYİP": 1.12, "DEM": 0.06, "YRP": 0.80, "ZP": 0.83, "BBP": 2.73, "TİP": 0.16, "OTH": 1.11 }
+  },
+  {
+    name: "Kars",
+    mpCount: 3,
+    ratios: { "CHP": 0.64, "AKP": 0.71, "MHP": 0.96, "İYİP": 1.54, "DEM": 3.24, "YRP": 0.69, "ZP": 0.00, "BBP": 0.60, "TİP": 0.00, "OTH": 1.17 }
+  },
+  {
+    name: "Kastamonu",
+    mpCount: 3,
+    ratios: { "CHP": 0.85, "AKP": 1.29, "MHP": 1.51, "İYİP": 0.78, "DEM": 0.02, "YRP": 1.44, "ZP": 0.78, "BBP": 0.92, "TİP": 0.00, "OTH": 1.27 }
+  },
+  {
+    name: "Kayseri",
+    mpCount: 10,
+    ratios: { "CHP": 0.67, "AKP": 1.15, "MHP": 1.92, "İYİP": 1.03, "DEM": 0.09, "YRP": 1.24, "ZP": 1.44, "BBP": 1.94, "TİP": 0.22, "OTH": 0.71 }
+  },
+  {
+    name: "Kırıkkale",
+    mpCount: 3,
+    ratios: { "CHP": 1.05, "AKP": 0.99, "MHP": 2.14, "İYİP": 1.04, "DEM": 0.03, "YRP": 0.64, "ZP": 0.68, "BBP": 0.66, "TİP": 0.00, "OTH": 0.66 }
+  },
+  {
+    name: "Kırklareli",
+    mpCount: 3,
+    ratios: { "CHP": 1.81, "AKP": 0.70, "MHP": 0.46, "İYİP": 1.57, "DEM": 0.19, "YRP": 0.23, "ZP": 0.69, "BBP": 0.50, "TİP": 1.02, "OTH": 1.20 }
+  },
+  {
+    name: "Kırşehir",
+    mpCount: 2,
+    ratios: { "CHP": 1.16, "AKP": 1.09, "MHP": 1.49, "İYİP": 0.74, "DEM": 0.28, "YRP": 0.56, "ZP": 0.86, "BBP": 1.01, "TİP": 0.23, "OTH": 0.97 }
+  },
+  {
+    name: "Kilis",
+    mpCount: 2,
+    ratios: { "CHP": 0.79, "AKP": 1.11, "MHP": 2.71, "İYİP": 0.59, "DEM": 0.10, "YRP": 0.83, "ZP": 0.84, "BBP": 0.44, "TİP": 0.00, "OTH": 0.77 }
+  },
+  {
+    name: "Kocaeli",
+    mpCount: 14,
+    ratios: { "CHP": 0.94, "AKP": 1.12, "MHP": 0.83, "İYİP": 0.98, "DEM": 0.64, "YRP": 2.06, "ZP": 1.40, "BBP": 1.14, "TİP": 0.00, "OTH": 1.17 }
+  },
+  {
+    name: "Konya",
+    mpCount: 15,
+    ratios: { "CHP": 0.53, "AKP": 1.36, "MHP": 1.44, "İYİP": 0.89, "DEM": 0.29, "YRP": 1.82, "ZP": 1.32, "BBP": 2.07, "TİP": 0.19, "OTH": 0.85 }
+  },
+  {
+    name: "Kütahya",
+    mpCount: 5,
+    ratios: { "CHP": 0.65, "AKP": 1.32, "MHP": 1.31, "İYİP": 1.08, "DEM": 0.03, "YRP": 2.53, "ZP": 0.76, "BBP": 1.20, "TİP": 0.15, "OTH": 1.00 }
+  },
+  {
+    name: "Malatya",
+    mpCount: 6,
+    ratios: { "CHP": 0.85, "AKP": 1.28, "MHP": 1.29, "İYİP": 0.40, "DEM": 0.34, "YRP": 3.31, "ZP": 0.50, "BBP": 1.37, "TİP": 0.00, "OTH": 0.56 }
+  },
+  {
+    name: "Manisa",
+    mpCount: 10,
+    ratios: { "CHP": 1.16, "AKP": 0.88, "MHP": 1.41, "İYİP": 1.14, "DEM": 0.64, "YRP": 0.54, "ZP": 0.99, "BBP": 1.35, "TİP": 0.00, "OTH": 1.16 }
+  },
+  {
+    name: "Mardin",
+    mpCount: 6,
+    ratios: { "CHP": 0.26, "AKP": 0.70, "MHP": 0.32, "İYİP": 0.11, "DEM": 6.39, "YRP": 0.39, "ZP": 0.21, "BBP": 0.15, "TİP": 0.00, "OTH": 0.66 }
+  },
+  {
+    name: "Mersin",
+    mpCount: 13,
+    ratios: { "CHP": 1.22, "AKP": 0.69, "MHP": 1.19, "İYİP": 1.22, "DEM": 1.52, "YRP": 0.31, "ZP": 0.81, "BBP": 0.45, "TİP": 1.16, "OTH": 0.83 }
+  },
+  {
+    name: "Muğla",
+    mpCount: 7,
+    ratios: { "CHP": 1.49, "AKP": 0.68, "MHP": 0.61, "İYİP": 1.76, "DEM": 0.38, "YRP": 0.21, "ZP": 0.74, "BBP": 0.28, "TİP": 3.33, "OTH": 1.29 }
+  },
+  {
+    name: "Muş",
+    mpCount: 3,
+    ratios: { "CHP": 0.28, "AKP": 0.58, "MHP": 0.95, "İYİP": 0.57, "DEM": 5.87, "YRP": 1.00, "ZP": 0.00, "BBP": 0.36, "TİP": 0.00, "OTH": 1.07 }
+  },
+  {
+    name: "Nevşehir",
+    mpCount: 3,
+    ratios: { "CHP": 0.68, "AKP": 1.11, "MHP": 2.05, "İYİP": 1.63, "DEM": 0.05, "YRP": 0.71, "ZP": 0.57, "BBP": 0.91, "TİP": 0.22, "OTH": 0.70 }
+  },
+  {
+    name: "Niğde",
+    mpCount: 3,
+    ratios: { "CHP": 0.95, "AKP": 0.95, "MHP": 2.26, "İYİP": 1.26, "DEM": 0.05, "YRP": 0.93, "ZP": 0.65, "BBP": 0.56, "TİP": 0.12, "OTH": 0.77 }
+  },
+  {
+    name: "Ordu",
+    mpCount: 6,
+    ratios: { "CHP": 0.95, "AKP": 1.28, "MHP": 1.27, "İYİP": 1.01, "DEM": 0.02, "YRP": 0.81, "ZP": 0.62, "BBP": 0.83, "TİP": 0.20, "OTH": 1.14 }
+  },
+  {
+    name: "Osmaniye",
+    mpCount: 4,
+    ratios: { "CHP": 0.67, "AKP": 0.92, "MHP": 2.88, "İYİP": 1.30, "DEM": 0.23, "YRP": 0.69, "ZP": 0.76, "BBP": 0.57, "TİP": 0.16, "OTH": 0.64 }
+  },
+  {
+    name: "Rize",
+    mpCount: 3,
+    ratios: { "CHP": 0.61, "AKP": 1.53, "MHP": 1.30, "İYİP": 0.61, "DEM": 0.03, "YRP": 1.81, "ZP": 0.77, "BBP": 1.61, "TİP": 0.17, "OTH": 1.28 }
+  },
+  {
+    name: "Sakarya",
+    mpCount: 8,
+    ratios: { "CHP": 0.63, "AKP": 1.34, "MHP": 1.20, "İYİP": 1.13, "DEM": 0.17, "YRP": 1.78, "ZP": 1.18, "BBP": 0.93, "TİP": 0.30, "OTH": 1.13 }
+  },
+  {
+    name: "Samsun",
+    mpCount: 9,
+    ratios: { "CHP": 0.77, "AKP": 1.20, "MHP": 1.43, "İYİP": 1.24, "DEM": 0.03, "YRP": 1.42, "ZP": 0.97, "BBP": 1.40, "TİP": 0.36, "OTH": 1.06 }
+  },
+  {
+    name: "Siirt",
+    mpCount: 3,
+    ratios: { "CHP": 0.28, "AKP": 1.01, "MHP": 0.36, "İYİP": 0.14, "DEM": 5.45, "YRP": 0.41, "ZP": 0.00, "BBP": 0.28, "TİP": 0.00, "OTH": 0.86 }
+  },
+  {
+    name: "Sinop",
+    mpCount: 2,
+    ratios: { "CHP": 1.01, "AKP": 1.20, "MHP": 0.90, "İYİP": 0.97, "DEM": 0.04, "YRP": 0.79, "ZP": 0.66, "BBP": 4.56, "TİP": 0.44, "OTH": 1.53 }
+  },
+  {
+    name: "Sivas",
+    mpCount: 5,
+    ratios: { "CHP": 0.63, "AKP": 1.14, "MHP": 1.82, "İYİP": 0.75, "DEM": 0.05, "YRP": 1.22, "ZP": 0.80, "BBP": 10.37, "TİP": 0.22, "OTH": 0.52 }
+  },
+  {
+    name: "Şanlıurfa",
+    mpCount: 14,
+    ratios: { "CHP": 0.30, "AKP": 1.22, "MHP": 0.93, "İYİP": 0.47, "DEM": 2.88, "YRP": 1.04, "ZP": 0.00, "BBP": 0.44, "TİP": 0.00, "OTH": 0.65 }
+  },
+  {
+    name: "Şırnak",
+    mpCount: 4,
+    ratios: { "CHP": 0.32, "AKP": 0.59, "MHP": 0.22, "İYİP": 0.11, "DEM": 7.34, "YRP": 0.20, "ZP": 0.50, "BBP": 0.14, "TİP": 0.00, "OTH": 0.72 }
+  },
+  {
+    name: "Tekirdağ",
+    mpCount: 8,
+    ratios: { "CHP": 1.44, "AKP": 0.86, "MHP": 0.63, "İYİP": 1.15, "DEM": 0.69, "YRP": 0.56, "ZP": 1.02, "BBP": 0.54, "TİP": 0.91, "OTH": 1.23 }
+  },
+  {
+    name: "Tokat",
+    mpCount: 5,
+    ratios: { "CHP": 0.81, "AKP": 1.05, "MHP": 2.23, "İYİP": 1.14, "DEM": 0.03, "YRP": 0.82, "ZP": 0.62, "BBP": 2.90, "TİP": 0.18, "OTH": 0.56 }
+  },
+  {
+    name: "Trabzon",
+    mpCount: 6,
+    ratios: { "CHP": 0.70, "AKP": 1.36, "MHP": 1.08, "İYİP": 1.25, "DEM": 0.03, "YRP": 1.61, "ZP": 0.82, "BBP": 1.57, "TİP": 0.15, "OTH": 0.80 }
+  },
+  {
+    name: "Tunceli",
+    mpCount: 1,
+    ratios: { "CHP": 1.28, "AKP": 0.35, "MHP": 0.54, "İYİP": 0.22, "DEM": 5.00, "YRP": 0.34, "ZP": 0.00, "BBP": 0.30, "TİP": 0.00, "OTH": 1.27 }
+  },
+  {
+    name: "Uşak",
+    mpCount: 3,
+    ratios: { "CHP": 1.15, "AKP": 1.01, "MHP": 0.93, "İYİP": 1.81, "DEM": 0.15, "YRP": 0.50, "ZP": 0.72, "BBP": 0.66, "TİP": 0.20, "OTH": 1.10 }
+  },
+  {
+    name: "Van",
+    mpCount: 8,
+    ratios: { "CHP": 0.25, "AKP": 0.72, "MHP": 0.48, "İYİP": 0.20, "DEM": 6.18, "YRP": 1.11, "ZP": 0.34, "BBP": 0.85, "TİP": 0.00, "OTH": 0.84 }
+  },
+  {
+    name: "Yalova",
+    mpCount: 3,
+    ratios: { "CHP": 1.14, "AKP": 0.96, "MHP": 1.13, "İYİP": 0.98, "DEM": 0.64, "YRP": 0.75, "ZP": 1.02, "BBP": 0.65, "TİP": 0.59, "OTH": 1.94 }
+  },
+  {
+    name: "Yozgat",
+    mpCount: 4,
+    ratios: { "CHP": 0.56, "AKP": 1.23, "MHP": 2.33, "İYİP": 0.96, "DEM": 0.04, "YRP": 1.55, "ZP": 0.58, "BBP": 1.67, "TİP": 0.11, "OTH": 0.75 }
+  },
+  {
+    name: "Zonguldak",
+    mpCount: 5,
+    ratios: { "CHP": 1.27, "AKP": 1.13, "MHP": 0.83, "İYİP": 1.03, "DEM": 0.04, "YRP": 0.89, "ZP": 0.80, "BBP": 0.87, "TİP": 0.26, "OTH": 1.43 }
+  }
+];
+
+    
+    /***********************************************
+     * CALCULATION FUNCTION
+     ***********************************************/
+    
+    function calculateSwingometer() {
+      // 1. Get national vote share inputs.
+      let nationalInputs = {};
+      let totalInput = 0;
+      parties.forEach(party => {
+        let val = parseFloat(document.getElementById("input_" + party).value);
+        if (isNaN(val)) { val = 0; }
+        nationalInputs[party] = val;
+        totalInput += val;
+      });
+      
+      if (totalInput === 0) {
+        alert("Please enter some vote share values for the parties.");
+        return;
+      }
+      
+      // 2. Normalize the national inputs so they sum to 1.
+      let normalizedNational = {};
+      parties.forEach(party => {
+        normalizedNational[party] = nationalInputs[party] / totalInput;
+      });
+      
+      // 3. Get threshold value.
+      let thresholdPercent = parseFloat(document.getElementById("threshold").value);
+      if (isNaN(thresholdPercent)) thresholdPercent = 10;
+      
+      // 4. For each province, compute local votes.
+      // These computed votes (normalizedNational * province.ratio) are used for the local breakdown and
+      // for seat allocation (after applying the threshold and force-qualify option).
+      let overallSeats = {};
+      parties.forEach(party => {
+        overallSeats[party] = 0;
+      });
+      
+      let provinceResults = [];
+      
+      provinces.forEach(province => {
+        // Compute raw vote values for each party in this province.
+        let computedVotes = {};
+        parties.forEach(party => {
+          computedVotes[party] = normalizedNational[party] * province.ratios[party];
+        });
+        
+        // Sum of computed votes for local percentage normalization.
+        let sumComputed = parties.reduce((sum, party) => sum + computedVotes[party], 0);
+        
+        // Calculate local vote percentages.
+        let localPercentages = {};
+        parties.forEach(party => {
+          localPercentages[party] = sumComputed > 0 ? (computedVotes[party] / sumComputed) * 100 : 0;
+        });
+        
+        // For seat allocation, determine the effective vote values:
+        // - If a party is "OTH", it always gets 0.
+        // - If the party’s "Force Qualify" checkbox is checked, then use computedVotes[party].
+        // - Otherwise, if the normalized national vote (×100) is below the threshold, assign 0.
+        let computedVotesForSeats = {};
+        parties.forEach(party => {
+          if (party === "OTH") {
+            computedVotesForSeats[party] = 0;
+          } else {
+            const qualifyCheckbox = document.getElementById("qualify_" + party);
+            const forceQualify = qualifyCheckbox ? qualifyCheckbox.checked : false;
+            if (forceQualify) {
+              computedVotesForSeats[party] = computedVotes[party];
+            } else {
+              computedVotesForSeats[party] = (normalizedNational[party] * 100 < thresholdPercent)
+                ? 0
+                : computedVotes[party];
+            }
+          }
+        });
+        
+        // d’Hondt seat allocation.
+        let seatsAllocated = {};
+        parties.forEach(party => { seatsAllocated[party] = 0; });
+        let seatsToAllocate = province.mpCount;
+        for (let i = 0; i < seatsToAllocate; i++) {
+          let maxQuotient = -1;
+          let winningParty = null;
+          parties.forEach(party => {
+            let quotient = computedVotesForSeats[party] / (seatsAllocated[party] + 1);
+            if (quotient > maxQuotient) {
+              maxQuotient = quotient;
+              winningParty = party;
+            }
+          });
+          if (winningParty !== null) {
+            seatsAllocated[winningParty]++;
+          }
+        }
+        
+        // Accumulate overall seats.
+        parties.forEach(party => {
+          overallSeats[party] += seatsAllocated[party];
+        });
+        
+        provinceResults.push({
+          province: province.name,
+          mpCount: province.mpCount,
+          computedVotes: computedVotes,
+          localPercentages: localPercentages,
+          seatsAllocated: seatsAllocated
+        });
+      });
+      
+      /***********************************************
+       * OVERALL (NATIONAL) PERCENTAGES FROM THE INPUTS
+       ***********************************************/
+      let overallPercentages = {};
+      parties.forEach(party => {
+        overallPercentages[party] = normalizedNational[party] * 100;
+      });
+      
+      /***********************************************
+       * OUTPUT RESULTS
+       ***********************************************/
+      let resultsDiv = document.getElementById("results");
+      resultsDiv.innerHTML = "";
+      
+      // Overall Summary Table.
+      let summaryHTML = "<h2>Overall Results</h2>";
+      summaryHTML += "<table><thead><tr><th>Party</th><th>National Vote % (Input)</th><th>MPs Allocated</th></tr></thead><tbody>";
+      parties.forEach(party => {
+        summaryHTML += "<tr><td>" + party + "</td><td>" + overallPercentages[party].toFixed(2) + "%</td><td>" + overallSeats[party] + "</td></tr>";
+      });
+      summaryHTML += "</tbody></table>";
+      resultsDiv.innerHTML += summaryHTML;
+      
+      // Province Breakdown.
+      let provinceHTML = "<h2>Province Breakdown</h2>";
+      provinceResults.forEach(res => {
+        provinceHTML += "<h3>" + res.province + " (MPs: " + res.mpCount + ")</h3>";
+        provinceHTML += "<table><thead><tr><th>Party</th><th>Local Vote %</th><th>MPs Allocated</th></tr></thead><tbody>";
+        parties.forEach(party => {
+          provinceHTML += "<tr><td>" + party + "</td><td>" + res.localPercentages[party].toFixed(2) + "%</td><td>" + res.seatsAllocated[party] + "</td></tr>";
+        });
+        provinceHTML += "</tbody></table>";
+      });
+      resultsDiv.innerHTML += provinceHTML;
+    }
+  </script>
+</body>
+</html>
