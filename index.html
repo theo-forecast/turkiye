@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Turkey Swingometer</title>
+  <title>Turkey Swingometer with Integrated Results</title>
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,14 +14,12 @@
       margin: 0;
       padding: 0;
     }
-    
     body {
       font-family: 'Roboto', sans-serif;
       background: linear-gradient(135deg, #f0f2f5, #cfd8dc);
       color: #333;
       padding: 20px;
     }
-    
     .container {
       max-width: 1100px;
       margin: 0 auto;
@@ -30,65 +28,56 @@
       border-radius: 8px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
-    
-    h1 {
+    h1, h2, h3, h4 {
       text-align: center;
       margin-bottom: 20px;
       font-weight: 700;
       color: #2c3e50;
     }
-    
     p {
       text-align: center;
       margin-bottom: 20px;
       font-size: 1.1em;
     }
-    
     table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 20px;
     }
-    
     table thead {
       background-color: #2c3e50;
       color: #fff;
     }
-    
     table th, table td {
-      padding: 12px;
+      padding: 10px;
       text-align: center;
       border: 1px solid #ddd;
     }
-    
     table tbody tr:nth-child(even) {
       background-color: #f9f9f9;
     }
-    
-    input[type="number"] {
+    input[type="number"],
+    input[type="text"] {
       width: 100%;
-      padding: 8px;
+      padding: 6px;
       font-size: 1em;
       border: 1px solid #ccc;
       border-radius: 4px;
     }
-    
-    input[type="number"]:focus {
+    input[type="number"]:focus,
+    input[type="text"]:focus {
       outline: none;
       border-color: #2c3e50;
       box-shadow: 0 0 5px rgba(44, 62, 80, 0.5);
     }
-    
     input[type="checkbox"] {
       transform: scale(1.2);
       cursor: pointer;
     }
-    
     label {
       font-size: 1.1em;
       margin-right: 10px;
     }
-    
     button {
       background-color: #2c3e50;
       color: #fff;
@@ -99,27 +88,17 @@
       cursor: pointer;
       transition: background-color 0.3s ease;
     }
-    
     button:hover {
       background-color: #34495e;
     }
-    
     .results-section {
       margin-top: 30px;
     }
-    
-    .results-section h2 {
-      margin-bottom: 15px;
-      color: #2c3e50;
-      border-bottom: 2px solid #2c3e50;
-      padding-bottom: 5px;
+    .province-block {
+      margin-bottom: 40px;
+      border-top: 2px solid #2c3e50;
+      padding-top: 20px;
     }
-    
-    .results-section h3 {
-      margin-top: 20px;
-      color: #34495e;
-    }
-    
     @media (max-width: 768px) {
       table th, table td {
         padding: 8px;
@@ -128,16 +107,21 @@
         width: 100%;
       }
     }
+    /* Spacing for candidate table buttons */
+    #presidentialTable + div {
+      margin-bottom: 20px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
   <div class="container">
+    <!-- Swingometer & Parliamentary Section -->
     <h1>Turkey Swingometer</h1>
     <p>
-      Enter each party’s national vote share (the numbers do not have to sum to 100). The values are normalized to calculate the adjusted national vote percentage. These percentages are then multiplied by each province’s party “ratio” to compute local votes. Local vote percentages are computed from these values, and seats are allocated by the d’Hondt method (with a threshold applied for seat allocation).
+      Enter each party’s national vote share (numbers do not have to sum to 100). These values are normalized to yield adjusted national percentages that serve as the base vote for both parliamentary seat allocation and for distributing party support to presidential candidates.
     </p>
-    
-    <!-- Input Form -->
+    <!-- Input Form for Parliament -->
     <form id="swingometerForm">
       <table>
         <thead>
@@ -148,72 +132,55 @@
           </tr>
         </thead>
         <tbody>
-          <!-- Rows are added by JavaScript -->
+          <!-- Rows added via JavaScript -->
         </tbody>
       </table>
-      <div style="text-align: center; margin-bottom: 20px;">
+      <div style="text-align: center;">
         <label for="threshold">Threshold (%)</label>
         <input type="number" id="threshold" value="10" step="0.1" style="width: 80px;">
       </div>
-      <div style="text-align: center;">
-        <button type="button" onclick="calculateSwingometer()">Calculate</button>
+      <div style="text-align: center; margin-top: 20px;">
+        <button type="button" onclick="calculateSwingometer()">Calculate All Results</button>
       </div>
       <p style="font-size: 0.9em; margin-top: 10px; text-align: center;">
         <sup>*</sup> Checking this box allows the party to qualify for MP allocation regardless of threshold.
       </p>
     </form>
     
-    <!-- Results Section -->
+    <!-- Overall National Results -->
     <div id="results" class="results-section"></div>
+    
+    <hr style="margin: 40px 0;">
+    
+    <!-- Presidential Candidate Party Support Section -->
+    <h2>Candidate Party Support</h2>
+    <p>
+      For each candidate, enter the percentage of each party’s vote they will receive (e.g. enter 100 for 100%—values larger than 100 are capped). In the final row (labeled <strong>Sandığa Gitmeyen</strong>) enter, for each party, the share of its vote that does not go to any candidate.
+    </p>
+    <table id="presidentialTable">
+      <thead>
+        <tr id="presidentialTableHeader">
+          <!-- Header built dynamically: first column "Candidate", then one column per party -->
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Candidate rows will be generated dynamically, plus a final row for Sandığa Gitmeyen -->
+      </tbody>
+    </table>
+    <div style="text-align: center; margin-bottom: 20px;">
+      <button type="button" onclick="addCandidate()">Add Candidate</button>
+    </div>
+    
+    <!-- Combined Province-Level Results -->
+    <div id="provinceResults" class="results-section"></div>
   </div>
   
   <script>
     /***********************************************
-     * PARTIES and PROVINCES DATA
+     * GLOBAL DATA: PARTIES and PROVINCES
      ***********************************************/
-    
     const parties = ["CHP", "AKP", "MHP", "İYİP", "DEM", "YRP", "ZP", "BBP", "TİP", "OTH"];
-    
-    // Populate the input form with a row for each party.
-    window.onload = function() {
-      const tbody = document.querySelector("form#swingometerForm tbody");
-      parties.forEach(party => {
-        const row = document.createElement("tr");
-        
-        // Party Name cell.
-        const cellParty = document.createElement("td");
-        cellParty.textContent = party;
-        row.appendChild(cellParty);
-        
-        // National Vote Share input cell.
-        const cellInput = document.createElement("td");
-        const input = document.createElement("input");
-        input.type = "number";
-        input.id = "input_" + party;
-        input.value = "0";
-        input.step = "any";
-        cellInput.appendChild(input);
-        row.appendChild(cellInput);
-        
-        // Force Qualify checkbox cell.
-        const cellCheckbox = document.createElement("td");
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.id = "qualify_" + party;
-        // For the "OTH" party, disable the checkbox because it should never qualify.
-        if (party === "OTH") {
-          checkbox.disabled = true;
-          checkbox.checked = false;
-        }
-        cellCheckbox.appendChild(checkbox);
-        row.appendChild(cellCheckbox);
-        
-        tbody.appendChild(row);
-      });
-    }
-    
-    // Province data with MP counts and party ratios.
-const provinces = [
+    const provinces = [
   {
     name: "Adana",
     mpCount: 15,
@@ -650,14 +617,112 @@ const provinces = [
     ratios: { "CHP": 1.27, "AKP": 1.13, "MHP": 0.83, "İYİP": 1.03, "DEM": 0.04, "YRP": 0.89, "ZP": 0.80, "BBP": 0.87, "TİP": 0.26, "OTH": 1.43 }
   }
 ];
-
     
     /***********************************************
-     * CALCULATION FUNCTION
+     * HELPER FUNCTION: Convert Input to Fraction
      ***********************************************/
+    // For candidate support or Sandığa Gitmeyen: if the input value is greater than 1,
+    // assume it’s in percentage form, cap it at 100%, and convert to a fraction.
+    // Otherwise, assume it’s already a fraction.
+    function getFraction(val) {
+      if (val > 1) {
+        return Math.min(val, 100) / 100;
+      } else {
+        return val;
+      }
+    }
     
+    /***********************************************
+     * INITIALIZATION ON WINDOW LOAD
+     ***********************************************/
+    window.onload = function() {
+      // ---- Populate Parliamentary Parties Table ----
+      const swingTbody = document.querySelector("form#swingometerForm tbody");
+      parties.forEach(party => {
+        const row = document.createElement("tr");
+        const cellParty = document.createElement("td");
+        cellParty.textContent = party;
+        row.appendChild(cellParty);
+        const cellInput = document.createElement("td");
+        const input = document.createElement("input");
+        input.type = "number";
+        input.id = "input_" + party;
+        input.value = "0";
+        input.step = "any";
+        cellInput.appendChild(input);
+        row.appendChild(cellInput);
+        const cellCheckbox = document.createElement("td");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.id = "qualify_" + party;
+        if (party === "OTH") {
+          checkbox.disabled = true;
+          checkbox.checked = false;
+        }
+        cellCheckbox.appendChild(checkbox);
+        row.appendChild(cellCheckbox);
+        swingTbody.appendChild(row);
+      });
+      
+      // ---- Build Presidential Candidate Table Header ----
+      const headerRow = document.getElementById("presidentialTableHeader");
+      let th = document.createElement("th");
+      th.textContent = "Candidate";
+      headerRow.appendChild(th);
+      parties.forEach(party => {
+        let th = document.createElement("th");
+        th.textContent = party;
+        headerRow.appendChild(th);
+      });
+      
+      // ---- Populate with Default Candidates ----
+      const presidentialTbody = document.querySelector("#presidentialTable tbody");
+      const defaultCandidates = ["Imamoğlu", "Erdoğan", "Erbakan", "İYİ/ZP", "DEM"];
+      defaultCandidates.forEach(candidateName => {
+        let row = document.createElement("tr");
+        // Candidate name cell.
+        let candidateCell = document.createElement("td");
+        let candidateInput = document.createElement("input");
+        candidateInput.type = "text";
+        candidateInput.value = candidateName;
+        candidateCell.appendChild(candidateInput);
+        row.appendChild(candidateCell);
+        // One cell per party for candidate support.
+        parties.forEach(() => {
+          let cell = document.createElement("td");
+          let input = document.createElement("input");
+          input.type = "number";
+          input.value = "0";
+          input.step = "any";
+          cell.appendChild(input);
+          row.appendChild(cell);
+        });
+        presidentialTbody.appendChild(row);
+      });
+      
+      // ---- Add a final row for "Sandığa Gitmeyen" ----
+      let sandigaRow = document.createElement("tr");
+      sandigaRow.id = "sandigaRow";
+      let labelCell = document.createElement("td");
+      labelCell.textContent = "Sandığa Gitmeyen";
+      sandigaRow.appendChild(labelCell);
+      parties.forEach(() => {
+        let cell = document.createElement("td");
+        let input = document.createElement("input");
+        input.type = "number";
+        input.value = "0";
+        input.step = "any";
+        cell.appendChild(input);
+        sandigaRow.appendChild(cell);
+      });
+      presidentialTbody.appendChild(sandigaRow);
+    };
+    
+    /***********************************************
+     * CALCULATION FUNCTION: SWINGOMETER & PRESIDENTIAL
+     ***********************************************/
     function calculateSwingometer() {
-      // 1. Get national vote share inputs.
+      /*********** PARLIAMENTARY CALCULATION ***********/
       let nationalInputs = {};
       let totalInput = 0;
       parties.forEach(party => {
@@ -666,52 +731,32 @@ const provinces = [
         nationalInputs[party] = val;
         totalInput += val;
       });
-      
       if (totalInput === 0) {
         alert("Please enter some vote share values for the parties.");
         return;
       }
       
-      // 2. Normalize the national inputs so they sum to 1.
       let normalizedNational = {};
       parties.forEach(party => {
         normalizedNational[party] = nationalInputs[party] / totalInput;
       });
       
-      // 3. Get threshold value.
       let thresholdPercent = parseFloat(document.getElementById("threshold").value);
       if (isNaN(thresholdPercent)) thresholdPercent = 10;
       
-      // 4. For each province, compute local votes.
-      // These computed votes (normalizedNational * province.ratio) are used for the local breakdown and
-      // for seat allocation (after applying the threshold and force-qualify option).
       let overallSeats = {};
-      parties.forEach(party => {
-        overallSeats[party] = 0;
-      });
-      
+      parties.forEach(party => { overallSeats[party] = 0; });
       let provinceResults = [];
-      
       provinces.forEach(province => {
-        // Compute raw vote values for each party in this province.
         let computedVotes = {};
         parties.forEach(party => {
           computedVotes[party] = normalizedNational[party] * province.ratios[party];
         });
-        
-        // Sum of computed votes for local percentage normalization.
         let sumComputed = parties.reduce((sum, party) => sum + computedVotes[party], 0);
-        
-        // Calculate local vote percentages.
         let localPercentages = {};
         parties.forEach(party => {
           localPercentages[party] = sumComputed > 0 ? (computedVotes[party] / sumComputed) * 100 : 0;
         });
-        
-        // For seat allocation, determine the effective vote values:
-        // - If a party is "OTH", it always gets 0.
-        // - If the party’s "Force Qualify" checkbox is checked, then use computedVotes[party].
-        // - Otherwise, if the normalized national vote (×100) is below the threshold, assign 0.
         let computedVotesForSeats = {};
         parties.forEach(party => {
           if (party === "OTH") {
@@ -719,17 +764,11 @@ const provinces = [
           } else {
             const qualifyCheckbox = document.getElementById("qualify_" + party);
             const forceQualify = qualifyCheckbox ? qualifyCheckbox.checked : false;
-            if (forceQualify) {
-              computedVotesForSeats[party] = computedVotes[party];
-            } else {
-              computedVotesForSeats[party] = (normalizedNational[party] * 100 < thresholdPercent)
-                ? 0
-                : computedVotes[party];
-            }
+            computedVotesForSeats[party] = (forceQualify || (normalizedNational[party] * 100 >= thresholdPercent))
+              ? computedVotes[party]
+              : 0;
           }
         });
-        
-        // d’Hondt seat allocation.
         let seatsAllocated = {};
         parties.forEach(party => { seatsAllocated[party] = 0; });
         let seatsToAllocate = province.mpCount;
@@ -747,12 +786,9 @@ const provinces = [
             seatsAllocated[winningParty]++;
           }
         }
-        
-        // Accumulate overall seats.
         parties.forEach(party => {
           overallSeats[party] += seatsAllocated[party];
         });
-        
         provinceResults.push({
           province: province.name,
           mpCount: province.mpCount,
@@ -762,40 +798,150 @@ const provinces = [
         });
       });
       
-      /***********************************************
-       * OVERALL (NATIONAL) PERCENTAGES FROM THE INPUTS
-       ***********************************************/
+      // Build overall national parliamentary result
       let overallPercentages = {};
       parties.forEach(party => {
         overallPercentages[party] = normalizedNational[party] * 100;
       });
       
-      /***********************************************
-       * OUTPUT RESULTS
-       ***********************************************/
       let resultsDiv = document.getElementById("results");
       resultsDiv.innerHTML = "";
-      
-      // Overall Summary Table.
-      let summaryHTML = "<h2>Overall Results</h2>";
-      summaryHTML += "<table><thead><tr><th>Party</th><th>National Vote % (Input)</th><th>MPs Allocated</th></tr></thead><tbody>";
+      let overallHTML = "<h2>Overall National Parliamentary Results</h2>";
+      overallHTML += "<table><thead><tr><th>Party</th><th>National Vote % (Input)</th><th>MPs Allocated</th></tr></thead><tbody>";
       parties.forEach(party => {
-        summaryHTML += "<tr><td>" + party + "</td><td>" + overallPercentages[party].toFixed(2) + "%</td><td>" + overallSeats[party] + "</td></tr>";
+        overallHTML += "<tr><td>" + party + "</td><td>" + overallPercentages[party].toFixed(2) + "%</td><td>" + overallSeats[party] + "</td></tr>";
       });
-      summaryHTML += "</tbody></table>";
-      resultsDiv.innerHTML += summaryHTML;
+      overallHTML += "</tbody></table>";
       
-      // Province Breakdown.
-      let provinceHTML = "<h2>Province Breakdown</h2>";
-      provinceResults.forEach(res => {
-        provinceHTML += "<h3>" + res.province + " (MPs: " + res.mpCount + ")</h3>";
+      // Build overall national presidential result table (using overall candidate vote)
+      // Retrieve candidate rows (all rows except the Sandığa Gitmeyen row)
+      const presidentialTbody = document.querySelector("#presidentialTable tbody");
+      const candidateRows = Array.from(presidentialTbody.getElementsByTagName("tr")).filter(
+        row => row.id !== "sandigaRow"
+      );
+      let candidateResults = [];
+      for (let i = 0; i < candidateRows.length; i++) {
+        const row = candidateRows[i];
+        const cells = row.getElementsByTagName("td");
+        let candidateName = cells[0].querySelector("input").value.trim();
+        if (!candidateName) { candidateName = "Candidate " + (i + 1); }
+        let candidateSupport = [];
+        for (let j = 1; j < cells.length; j++) {
+          let val = parseFloat(cells[j].querySelector("input").value);
+          if (isNaN(val)) { val = 0; }
+          candidateSupport.push(val);
+        }
+        candidateResults.push({
+          candidate: candidateName,
+          support: candidateSupport, // raw inputs per party
+          totalVotes: 0,
+          provinceVotes: {}
+        });
+      }
+      
+      // Retrieve Sandığa Gitmeyen values (final row)
+      let sandigaRow = document.getElementById("sandigaRow");
+      const sandigaCells = sandigaRow.getElementsByTagName("td");
+      let sandigaValues = [];
+      for (let j = 1; j < sandigaCells.length; j++) {
+        let val = parseFloat(sandigaCells[j].querySelector("input").value);
+        if (isNaN(val)) { val = 0; }
+        sandigaValues.push(val);
+      }
+      
+      // Overall candidate vote (national) = sum over parties: normalizedNational[party] * (1 - sandığa) * candidateSupport
+      candidateResults.forEach(candidate => {
+        let overallVote = 0;
+        parties.forEach((party, index) => {
+          let candidateFraction = getFraction(candidate.support[index]);
+          let sandigaFraction = getFraction(sandigaValues[index]);
+          let available = normalizedNational[party] * (1 - sandigaFraction);
+          overallVote += available * candidateFraction;
+        });
+        candidate.totalVotes = overallVote;
+      });
+      
+      let totalAllCandidates = candidateResults.reduce((sum, candidate) => sum + candidate.totalVotes, 0);
+      
+      let overallPresHTML = "<h2>Overall National Presidential Results</h2>";
+      overallPresHTML += "<table><thead><tr><th>Candidate</th><th>National Vote %</th></tr></thead><tbody>";
+      candidateResults.forEach(candidate => {
+        let perc = totalAllCandidates > 0 ? (candidate.totalVotes / totalAllCandidates * 100) : 0;
+        overallPresHTML += "<tr><td>" + candidate.candidate + "</td><td>" + perc.toFixed(2) + "%</td></tr>";
+      });
+      overallPresHTML += "</tbody></table>";
+      
+      // Build combined province-level results:
+      // For each province, display a block with:
+      // - The parliamentary results table for that province
+      // - The presidential candidate breakdown table for that province.
+      let provinceHTML = "<h2>Province-Level Combined Results</h2>";
+      provinces.forEach(province => {
+        provinceHTML += "<div class='province-block'>";
+        provinceHTML += "<h3>" + province.name + " (MPs: " + province.mpCount + ")</h3>";
+        // Parliamentary table for the province:
         provinceHTML += "<table><thead><tr><th>Party</th><th>Local Vote %</th><th>MPs Allocated</th></tr></thead><tbody>";
         parties.forEach(party => {
-          provinceHTML += "<tr><td>" + party + "</td><td>" + res.localPercentages[party].toFixed(2) + "%</td><td>" + res.seatsAllocated[party] + "</td></tr>";
+          // Find corresponding province result:
+          let provResult = provinceResults.find(pr => pr.province === province.name);
+          provinceHTML += "<tr><td>" + party + "</td><td>" + provResult.localPercentages[party].toFixed(2) + "%</td><td>" + provResult.seatsAllocated[party] + "</td></tr>";
         });
         provinceHTML += "</tbody></table>";
+        
+        // Now calculate presidential candidate votes for this province.
+        // For each candidate: vote = sum over parties: normalizedNational[party] * province.ratios[party] * (1 - sandığa) * candidateSupport
+        let provinceCandidateTotals = {};
+        candidateResults.forEach(candidate => {
+          let vote = 0;
+          parties.forEach((party, index) => {
+            let candidateFraction = getFraction(candidate.support[index]);
+            let sandigaFraction = getFraction(sandigaValues[index]);
+            let available = normalizedNational[party] * province.ratios[party] * (1 - sandigaFraction);
+            vote += available * candidateFraction;
+          });
+          candidate.provinceVotes[province.name] = vote;
+          provinceCandidateTotals[province.name] = (provinceCandidateTotals[province.name] || 0) + vote;
+        });
+        
+        // Build presidential result table for this province:
+        provinceHTML += "<h4>Presidential Results in " + province.name + "</h4>";
+        provinceHTML += "<table><thead><tr><th>Candidate</th><th>Vote %</th></tr></thead><tbody>";
+        candidateResults.forEach(candidate => {
+          let provTotal = provinceCandidateTotals[province.name];
+          let provPerc = provTotal > 0 ? (candidate.provinceVotes[province.name] / provTotal * 100) : 0;
+          provinceHTML += "<tr><td>" + candidate.candidate + "</td><td>" + provPerc.toFixed(2) + "%</td></tr>";
+        });
+        provinceHTML += "</tbody></table>";
+        provinceHTML += "</div>";
       });
-      resultsDiv.innerHTML += provinceHTML;
+      
+      // Append all results
+      resultsDiv.innerHTML = overallHTML + overallPresHTML + provinceHTML;
+    }
+    
+    /***********************************************
+     * FUNCTION TO ADD A NEW CANDIDATE ROW
+     ***********************************************/
+    function addCandidate() {
+      const presidentialTbody = document.querySelector("#presidentialTable tbody");
+      const sandigaRow = document.getElementById("sandigaRow");
+      let newRow = document.createElement("tr");
+      let candidateCell = document.createElement("td");
+      let candidateInput = document.createElement("input");
+      candidateInput.type = "text";
+      candidateInput.placeholder = "Candidate Name";
+      candidateCell.appendChild(candidateInput);
+      newRow.appendChild(candidateCell);
+      parties.forEach(() => {
+        let cell = document.createElement("td");
+        let input = document.createElement("input");
+        input.type = "number";
+        input.value = "0";
+        input.step = "any";
+        cell.appendChild(input);
+        newRow.appendChild(cell);
+      });
+      presidentialTbody.insertBefore(newRow, document.getElementById("sandigaRow"));
     }
   </script>
 </body>
